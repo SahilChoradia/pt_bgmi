@@ -33,7 +33,7 @@ export default function Leaderboard({ tournamentId, refreshTrigger }: Leaderboar
       const response = await fetch(`/api/teams?tournamentId=${tournamentId}`);
       const data = await response.json();
       if (data.success) {
-        const sortedTeams = sortTeamsForLeaderboard(data.data);
+        const sortedTeams = sortTeamsForLeaderboard<Team>(data.data);
         setTeams(sortedTeams);
       }
     } catch (err) {
