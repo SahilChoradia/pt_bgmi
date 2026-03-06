@@ -14,6 +14,13 @@ export async function GET() {
 
     const db = mongoose.connection.db;
     
+    if (!db) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not established' },
+        { status: 500 }
+      );
+    }
+    
     // Check if collection exists
     const collections = await db.listCollections({ name: 'users' }).toArray();
     

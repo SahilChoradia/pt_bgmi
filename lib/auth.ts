@@ -49,15 +49,17 @@ async function getUserModel() {
   const db = mongoose.connection.db;
   
   // Drop old email index if it exists
-  try {
-    const indexes = await db.collection('users').indexes();
-    const emailIndex = indexes.find((idx: any) => idx.name === 'email_1');
-    if (emailIndex) {
-      await db.collection('users').dropIndex('email_1');
-      console.log('Dropped old email index');
+  if (db) {
+    try {
+      const indexes = await db.collection('users').indexes();
+      const emailIndex = indexes.find((idx: any) => idx.name === 'email_1');
+      if (emailIndex) {
+        await db.collection('users').dropIndex('email_1');
+        console.log('Dropped old email index');
+      }
+    } catch (e) {
+      // Index might not exist, that's fine
     }
-  } catch (e) {
-    // Index might not exist, that's fine
   }
 
   // Define schema inline to ensure it's fresh
