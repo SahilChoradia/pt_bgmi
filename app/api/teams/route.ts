@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import connectDB from '@/lib/mongodb';
 import Team from '@/models/Team';
+import Tournament from '@/models/Tournament';
+import { authOptions } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,6 +30,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+
+    // Only admin and editor can add teams
+    if (!session || !['admin', 'editor'].includes(session.user.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized. Only admins and editors can add teams.' },
+        { status: 401 }
+      );
+    }
+
     await connectDB();
     const body = await request.json();
     const { tournamentId, teamName, shortName, playerName, logoUrl } = body;
@@ -36,6 +49,17 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Tournament ID and Team Name are required' },
         { status: 400 }
       );
+    }
+
+    // Check if user has access to this tournament (admin has access to all)
+    if (session.user.role !== 'admin') {
+      const tournament = await Tournament.findById(tournamentId);
+      if (!tournament || !tournament.allowedUsers.map((id: any) => id.toString()).includes(session.user.id)) {
+        return NextResponse.json(
+          { success: false, error: 'You do not have access to this tournament' },
+          { status: 403 }
+        );
+      }
     }
 
     const finalShortName = shortName?.trim() || null;
@@ -74,6 +98,16 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+
+    // Only admin and editor can edit teams
+    if (!session || !['admin', 'editor'].includes(session.user.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized. Only admins and editors can edit teams.' },
+        { status: 401 }
+      );
+    }
+
     await connectDB();
     const body = await request.json();
     const { teamId, teamName, shortName, playerName, logoUrl } = body;
@@ -83,6 +117,26 @@ export async function PUT(request: NextRequest) {
         { success: false, error: 'Team ID and Team Name are required' },
         { status: 400 }
       );
+    }
+
+    // Get the team to check tournament access
+    const existingTeam = await Team.findById(teamId);
+    if (!existingTeam) {
+      return NextResponse.json(
+        { success: false, error: 'Team not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has access to this tournament (admin has access to all)
+    if (session.user.role !== 'admin') {
+      const tournament = await Tournament.findById(existingTeam.tournamentId);
+      if (!tournament || !tournament.allowedUsers.map((id: any) => id.toString()).includes(session.user.id)) {
+        return NextResponse.json(
+          { success: false, error: 'You do not have access to this tournament' },
+          { status: 403 }
+        );
+      }
     }
 
     const finalShortName = shortName?.trim() || null;
@@ -105,13 +159,6 @@ export async function PUT(request: NextRequest) {
       { new: true }
     );
 
-    if (!team) {
-      return NextResponse.json(
-        { success: false, error: 'Team not found' },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json({ success: true, data: team });
   } catch (error: any) {
     return NextResponse.json(
@@ -123,7 +170,16 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    await connectDB();
+    const session = await getServerSession(authOptions);
+
+    // Only admin and editor can delete teams
+    if (!session || !['admin', 'editor'].includes(session.user.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized. Only admins and editors can delete teams.' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const teamId = searchParams.get('teamId');
 
@@ -132,6 +188,28 @@ export async function DELETE(request: NextRequest) {
         { success: false, error: 'Team ID is required' },
         { status: 400 }
       );
+    }
+
+    await connectDB();
+
+    // Get the team to check tournament access
+    const existingTeam = await Team.findById(teamId);
+    if (!existingTeam) {
+      return NextResponse.json(
+        { success: false, error: 'Team not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has access to this tournament (admin has access to all)
+    if (session.user.role !== 'admin') {
+      const tournament = await Tournament.findById(existingTeam.tournamentId);
+      if (!tournament || !tournament.allowedUsers.map((id: any) => id.toString()).includes(session.user.id)) {
+        return NextResponse.json(
+          { success: false, error: 'You do not have access to this tournament' },
+          { status: 403 }
+        );
+      }
     }
 
     await Team.findByIdAndDelete(teamId);
@@ -143,4 +221,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-

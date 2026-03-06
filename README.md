@@ -12,6 +12,9 @@ A production-ready full-stack Next.js 14 application for managing BGMI (Battlegr
 - 📥 CSV export functionality
 - 🔄 Tournament reset option
 - 🎨 Dark esports-themed UI
+- 🔐 **Authentication with role-based access control**
+- 👤 **User management with Admin panel**
+- 📺 **Streamer mode for live broadcasts**
 
 ## Tech Stack
 
@@ -19,7 +22,8 @@ A production-ready full-stack Next.js 14 application for managing BGMI (Battlegr
 - **TypeScript**
 - **TailwindCSS**
 - **MongoDB** (via Mongoose)
-- **React useState** (no complex state management)
+- **NextAuth.js** (Authentication)
+- **bcryptjs** (Password hashing)
 - **Lucide Icons**
 
 ## Getting Started
@@ -42,28 +46,62 @@ cd bgmi-point-table-maker
 npm install
 ```
 
-3. Set up environment variables:
-```bash
-cp .env.local.example .env.local
-```
-
-4. Edit `.env.local` and add your MongoDB connection string:
-```
+3. Set up environment variables. Create a `.env.local` file:
+```env
+# MongoDB Connection String
 MONGODB_URI=your_mongodb_connection_string
+
+# NextAuth.js Configuration
+# Generate a secret with: openssl rand -base64 32
+NEXTAUTH_SECRET=your-secret-key-here
+NEXTAUTH_URL=http://localhost:3000
 ```
 
-5. Run the development server:
+4. Run the development server:
 ```bash
 npm run dev
 ```
 
-6. Open [http://localhost:3000](http://localhost:3000) in your browser.
+5. **Create the initial admin user:**
+   - Visit `http://localhost:3000/api/seed` in your browser
+   - This will create an admin user with:
+     - Email: `admin@bgmi.com`
+     - Password: `admin123`
+   - **Important:** Change the password after first login!
+
+6. Open [http://localhost:3000](http://localhost:3000) and log in.
+
+## Authentication & Roles
+
+### User Roles
+
+| Role | Permissions |
+|------|-------------|
+| **Admin** | Create/edit/delete tournaments, manage users, assign roles, full access |
+| **Editor** | Edit tournament data, add match results, manage teams (assigned tournaments only) |
+| **Viewer** | View leaderboard, access streamer mode (read-only) |
+
+### Default Role
+New users are created with the `viewer` role by default.
+
+### Pages
+
+| Page | Access |
+|------|--------|
+| `/login` | Public |
+| `/dashboard` | All authenticated users |
+| `/admin` | Admin only |
+| `/` (Tournament Management) | Admin & Editor |
+| `/stream?tournamentId=xxx` | All users (read-only) |
 
 ## Deployment to Vercel
 
 1. Push your code to GitHub
 2. Import the project in Vercel
-3. Add `MONGODB_URI` in Vercel Environment Variables
+3. Add environment variables in Vercel:
+   - `MONGODB_URI` - Your MongoDB connection string
+   - `NEXTAUTH_SECRET` - A secure random string
+   - `NEXTAUTH_URL` - Your production URL (e.g., `https://your-app.vercel.app`)
 4. Deploy!
 
 The application will be live instantly - no separate backend server required.
@@ -98,33 +136,81 @@ Total Points = Placement Points + Kill Points
 bgmi-point-table-maker/
 ├── app/
 │   ├── api/
+│   │   ├── auth/[...nextauth]/  # NextAuth.js handler
 │   │   ├── tournaments/
+│   │   │   ├── accessible/      # User-accessible tournaments
+│   │   │   └── assign/          # Tournament assignment
 │   │   ├── teams/
-│   │   └── matches/
+│   │   ├── matches/
+│   │   ├── users/               # User management
+│   │   │   └── role/            # Role management
+│   │   └── seed/                # Initial admin seeding
+│   ├── admin/                   # Admin panel
+│   ├── dashboard/               # User dashboard
+│   ├── login/                   # Login page
+│   ├── stream/                  # Streamer mode
 │   ├── layout.tsx
 │   └── page.tsx
 ├── components/
 │   ├── Header.tsx
+│   ├── SessionProvider.tsx      # NextAuth session wrapper
 │   ├── TournamentForm.tsx
 │   ├── TournamentSelector.tsx
 │   ├── AddTeamForm.tsx
 │   ├── TeamList.tsx
 │   ├── MatchEntry.tsx
 │   ├── Leaderboard.tsx
-│   └── MatchHistory.tsx
+│   ├── MatchHistory.tsx
+│   ├── StreamerLeaderboard.tsx
+│   └── VerticalStreamerLeaderboard.tsx
 ├── lib/
-│   └── mongodb.ts
+│   ├── mongodb.ts
+│   └── auth.ts                  # NextAuth configuration
 ├── models/
-│   ├── Tournament.ts
+│   ├── Tournament.ts            # With createdBy & allowedUsers
 │   ├── Team.ts
-│   └── Match.ts
+│   ├── Match.ts
+│   └── User.ts                  # User model with roles
+├── middleware.ts                # Route protection
+├── scripts/
+│   └── seed-admin.ts            # Admin seeding script
 └── utils/
     ├── points.ts
     └── sorting.ts
 ```
 
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/[...nextauth]` - NextAuth.js handler
+
+### Tournaments
+- `GET /api/tournaments` - List all tournaments
+- `POST /api/tournaments` - Create tournament (Admin only)
+- `DELETE /api/tournaments?tournamentId=xxx` - Delete tournament (Admin only)
+- `GET /api/tournaments/accessible` - List user's accessible tournaments
+- `PUT /api/tournaments/assign` - Assign/unassign users to tournaments (Admin only)
+
+### Teams
+- `GET /api/teams?tournamentId=xxx` - List teams
+- `POST /api/teams` - Create team (Admin/Editor)
+- `PUT /api/teams` - Update team (Admin/Editor)
+- `DELETE /api/teams?teamId=xxx` - Delete team (Admin/Editor)
+- `POST /api/teams/reset` - Reset tournament stats (Admin/Editor)
+
+### Matches
+- `GET /api/matches?tournamentId=xxx` - List matches
+- `POST /api/matches` - Add match results (Admin/Editor)
+
+### Users
+- `GET /api/users` - List all users (Admin only)
+- `POST /api/users` - Create user (Admin only)
+- `DELETE /api/users?userId=xxx` - Delete user (Admin only)
+- `PUT /api/users/role` - Change user role (Admin only)
+
+### Utility
+- `GET /api/seed` - Create initial admin user (one-time use)
+
 ## License
 
 MIT
-
-

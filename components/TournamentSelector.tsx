@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { ChevronDown } from "lucide-react";
 
 interface Tournament {
@@ -18,17 +19,23 @@ export default function TournamentSelector({
   onTournamentSelect,
   selectedTournament,
 }: TournamentSelectorProps) {
+  const { data: session } = useSession();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     fetchTournaments();
-  }, []);
+  }, [session]);
 
   const fetchTournaments = async () => {
     try {
-      const response = await fetch("/api/tournaments");
+      // Use accessible endpoint for non-admin users to only see assigned tournaments
+      const endpoint = session?.user?.role === 'admin' 
+        ? "/api/tournaments" 
+        : "/api/tournaments/accessible";
+      
+      const response = await fetch(endpoint);
       const data = await response.json();
       if (data.success) {
         setTournaments(data.data);
@@ -90,5 +97,3 @@ export default function TournamentSelector({
     </div>
   );
 }
-
-

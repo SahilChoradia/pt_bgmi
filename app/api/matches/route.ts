@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import connectDB from '@/lib/mongodb';
 import Match from '@/models/Match';
 import Team from '@/models/Team';
+import Tournament from '@/models/Tournament';
 import { calculatePlacementPoints, calculateTotalPoints } from '@/utils/points';
+import { authOptions } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,6 +35,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+
+    // Only admin and editor can add match results
+    if (!session || !['admin', 'editor'].includes(session.user.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized. Only admins and editors can add match results.' },
+        { status: 401 }
+      );
+    }
+
     await connectDB();
     const body = await request.json();
     const { tournamentId, matchNumber, results } = body;
@@ -41,6 +54,17 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Tournament ID, match number, and results are required' },
         { status: 400 }
       );
+    }
+
+    // Check if user has access to this tournament (admin has access to all)
+    if (session.user.role !== 'admin') {
+      const tournament = await Tournament.findById(tournamentId);
+      if (!tournament || !tournament.allowedUsers.map((id: any) => id.toString()).includes(session.user.id)) {
+        return NextResponse.json(
+          { success: false, error: 'You do not have access to this tournament' },
+          { status: 403 }
+        );
+      }
     }
 
     // Calculate points for each result
@@ -96,5 +120,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
