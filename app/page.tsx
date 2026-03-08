@@ -107,8 +107,8 @@ function HomeContent() {
         // Sort teams for leaderboard
         const sortedTeams = [...data.data].sort((a: any, b: any) => {
           if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-          if (b.killPoints !== a.killPoints) return b.killPoints - a.killPoints;
-          return b.placementPoints - a.placementPoints;
+          if (b.placementPoints !== a.placementPoints) return b.placementPoints - a.placementPoints;
+          return b.killPoints - a.killPoints;
         });
 
         // Create CSV content

@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const teams = await Team.find({ tournamentId }).sort({ totalPoints: -1, killPoints: -1, placementPoints: -1 });
+    const teams = await Team.find({ tournamentId }).sort({ totalPoints: -1, placementPoints: -1, killPoints: -1 });
     return NextResponse.json({ success: true, data: teams });
   } catch (error: any) {
     return NextResponse.json(

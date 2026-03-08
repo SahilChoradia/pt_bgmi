@@ -1,15 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { LogIn, Gamepad2, Phone } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Get and decode callbackUrl
+  const rawCallbackUrl = searchParams.get('callbackUrl');
+  let callbackUrl = '/dashboard';
+  
+  if (rawCallbackUrl) {
+    try {
+      // Decode URL-encoded callback URL
+      callbackUrl = decodeURIComponent(rawCallbackUrl);
+      // If it's a full URL, extract just the path
+      if (callbackUrl.startsWith('http')) {
+        const url = new URL(callbackUrl);
+        callbackUrl = url.pathname + url.search;
+      }
+    } catch (e) {
+      // If decoding fails, use default
+      callbackUrl = '/dashboard';
+    }
+  }
 
   // Validate WhatsApp number format
   const isValidWhatsAppNumber = (number: string): boolean => {
@@ -34,17 +54,27 @@ export default function LoginPage() {
       const result = await signIn('credentials', {
         whatsappNumber: whatsappNumber.replace(/[\s-]/g, ''),
         redirect: false,
+        callbackUrl: callbackUrl,
       });
 
       if (result?.error) {
         setError(result.error);
+        setLoading(false);
+      } else if (result?.ok) {
+        // Small delay to ensure session is set
+        setTimeout(() => {
+          // Use window.location for more reliable redirect in production
+          window.location.href = callbackUrl;
+        }, 100);
       } else {
-        router.push('/dashboard');
-        router.refresh();
+        // Fallback to router
+        setTimeout(() => {
+          router.push(callbackUrl);
+          router.refresh();
+        }, 100);
       }
     } catch (err) {
       setError('An unexpected error occurred');
-    } finally {
       setLoading(false);
     }
   };
@@ -146,5 +176,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-green-500/30 border-t-green-500 rounded-full animate-spin" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

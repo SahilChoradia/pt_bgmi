@@ -7,8 +7,8 @@ interface TeamLike {
 /**
  * Sort teams for leaderboard
  * 1. Higher Total Points
- * 2. Higher Kill Points
- * 3. Higher Placement Points
+ * 2. Higher Placement Points
+ * 3. Higher Kill Points (Finish Points)
  */
 export function sortTeamsForLeaderboard<T extends TeamLike>(teams: T[]): T[] {
   return [...teams].sort((a, b) => {
@@ -17,13 +17,13 @@ export function sortTeamsForLeaderboard<T extends TeamLike>(teams: T[]): T[] {
       return b.totalPoints - a.totalPoints;
     }
     
-    // Second: Kill Points (descending)
-    if (b.killPoints !== a.killPoints) {
-      return b.killPoints - a.killPoints;
+    // Second: Placement Points (descending)
+    if (b.placementPoints !== a.placementPoints) {
+      return b.placementPoints - a.placementPoints;
     }
     
-    // Third: Placement Points (descending)
-    return b.placementPoints - a.placementPoints;
+    // Third: Kill Points / Finish Points (descending)
+    return b.killPoints - a.killPoints;
   });
 }
 
